@@ -502,3 +502,29 @@ Let's trace through what happens when we call `trace(d)` for `d = a * b + c`:
 
     So you can implement `__truediv__` by wrapping `other` as a `Value` and returning `self * (other ** -1)` (i.e., multiply by the reciprocal).
 
+### Reset gradients between optimization steps
+
+It's important to reset parameter gradients to zero before each `backward()` call when doing iterative optimization, otherwise gradients accumulate across steps and the effective update becomes much larger than intended.
+
+```python
+for k in range(20):
+
+    # forward pass
+    ypred = [n(x) for x in xs]
+
+    loss = sum(((yout - ygt)**2 for yout, ygt in zip(ypred, ys)), Value(0.0))
+
+    # backward pass: reset gradients to zero before backward
+    for p in n.parameters():
+        p.grad = 0.0
+    loss.backward()
+
+    # update rule with learning rate
+    for p in n.parameters():
+        p.data += -0.04 * p.grad
+
+    print(k, loss.data)
+```
+
+Don't forget to reset gradients to zero each time; otherwise they will accumulate and cause excessively large or incorrect updates. In our simple example this accidentally made convergence appear easy, but it's misleading and can lead to buggy training behaviour in general.
+
